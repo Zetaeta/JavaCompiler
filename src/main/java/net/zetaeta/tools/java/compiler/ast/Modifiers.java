@@ -21,7 +21,8 @@ public class Modifiers {
                             ABSTRACT     = 0x0400,
                             STRICTFP     = 0x0800,
                             ANNOTATION   = 0x2000,
-                            ENUM         = 0x4000;
+                            ENUM         = 0x4000,
+                            CLASS        = 0x8000;
     
     public void addFlag(int flag) {
         mods |= flag;

@@ -3,7 +3,8 @@ package net.zetaeta.tools.java.compiler.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ClassDeclaration extends ClassOrInterfaceDeclaration {
+public class Expression extends TreeNode {
+
     @Override
     protected List<TreeNode> getChildList() {
         return new ArrayList<>();

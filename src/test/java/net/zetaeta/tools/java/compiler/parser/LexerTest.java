@@ -6,7 +6,6 @@ import java.io.InputStreamReader;
 
 public class LexerTest {
     public static void main(String[] args) throws IOException {
-        StringBuilder sb = new StringBuilder();
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         String line = in.readLine();
         Lexer lexer = new Lexer(line);

@@ -1,5 +1,10 @@
 package net.zetaeta.tools.java.compiler.parser;
 
+import java.lang.reflect.Field;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Map;
+
 public class Token {
     
     public enum Type {
@@ -217,6 +222,7 @@ public class Token {
         return charValue;
     }
     
+    
     @Override
     public String toString() {
         switch (type) {
@@ -239,9 +245,15 @@ public class Token {
         }
     }
     
+    public static Token getSingleton(Type type) {
+        return singletons.get(type);
+    }
+    
+    private static Map<Type, Token> singletons = new EnumMap<>(Type.class);
+    
     public static final Token EOF = new Token(Type.EOF),
                               ERROR = new Token(Type.ERROR),
-                              IDENTIFIER = new Token(Type.IDENTIFIER),
+//                              IDENTIFIER = new Token(Type.IDENTIFIER),
                               ABSTRACT = new Token(Type.ABSTRACT),
                               ASSERT = new Token(Type.ASSERT),
                               BOOLEAN = new Token(Type.BOOLEAN),
@@ -291,12 +303,12 @@ public class Token {
                               VOID = new Token(Type.VOID),
                               VOLATILE = new Token(Type.VOLATILE),
                               WHILE = new Token(Type.WHILE),
-                              INT_LITERAL = new Token(Type.INT_LITERAL),
-                              LONG_LITERAL = new Token(Type.LONG_LITERAL),
-                              FLOAT_LITERAL = new Token(Type.FLOAT_LITERAL),
-                              DOUBLE_LITERAL = new Token(Type.DOUBLE_LITERAL),
-                              CHAR_LITERAL = new Token(Type.CHAR_LITERAL),
-                              STRING_LITERAL = new Token(Type.STRING_LITERAL),
+//                              INT_LITERAL = new Token(Type.INT_LITERAL),
+//                              LONG_LITERAL = new Token(Type.LONG_LITERAL),
+//                              FLOAT_LITERAL = new Token(Type.FLOAT_LITERAL),
+//                              DOUBLE_LITERAL = new Token(Type.DOUBLE_LITERAL),
+//                              CHAR_LITERAL = new Token(Type.CHAR_LITERAL),
+//                              STRING_LITERAL = new Token(Type.STRING_LITERAL),
                               LPAREN = new Token(Type.LPAREN),
                               RPAREN = new Token(Type.RPAREN),
                               LBRACE = new Token(Type.LBRACE),
@@ -345,5 +357,19 @@ public class Token {
                               PERCENTEQ = new Token(Type.PERCENTEQ),
                               AT = new Token(Type.AT),
                               QUERY = new Token(Type.QUERY);
+    
+    static {
+        for (Field f : Token.class.getDeclaredFields()) {
+            if (f.getType() == Token.class) {
+                try {
+                    Token t = (Token) f.get(null);
+                    singletons.put(t.type, t);
+                } catch (IllegalArgumentException | IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+                
+            }
+        }
+    }
 
 }

@@ -365,13 +365,12 @@ public class Lexer {
             if (index >= stream.length) {
                 break;
             }
-            System.out.println("About to read char, index = " + index + ", stream.length = " + stream.length);
             nextChar();
         }
         putBack();
         Type type = Keywords.lookup(bufferToString());
         if (type != Type.IDENTIFIER) {
-            currentToken = new Token(type);
+            currentToken = Token.getSingleton(type);
         }
         else {
             currentToken = new Token(type, bufferToString());
