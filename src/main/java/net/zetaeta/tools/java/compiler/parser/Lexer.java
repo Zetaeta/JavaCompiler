@@ -1,5 +1,6 @@
 package net.zetaeta.tools.java.compiler.parser;
 
+import java.io.EOFException;
 import java.io.ObjectOutputStream.PutField;
 import java.util.Arrays;
 
@@ -44,7 +45,10 @@ public class Lexer {
         currentToken = Token.EOF;
     }
     
-    protected char nextChar() {
+    protected char nextChar() throws EOFException {
+        if (index >= stream.length) {
+            throw new EOFException();
+        }
         ch = stream[index++];
         if (ch == '\\') {
             convertUnicode();
@@ -69,7 +73,10 @@ public class Lexer {
     }
     
     protected void putBack() {
-        --index;
+        System.out.println("putBack: index = " + index + ", ch = " + ch);
+        index--;
+        ch = stream[index - 1];
+        System.out.println("putBack: index = " + index + ", ch = " + ch);
     }
     
     protected void addChar(char c) {
@@ -102,264 +109,277 @@ public class Lexer {
             return Token.EOF;
         }
         while (true) {
-            if (index == stream.length) {
-                return (currentToken = Token.EOF);
-            }
-            nextChar();
-            switch (ch) {
-            case ' ': case '\t': case '\r': case '\n':
-                continue;
-            case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
-            case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
-            case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
-            case 'v': case 'w': case 'x': case 'y': case 'z':
-            case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
-            case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'O':
-            case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V':
-            case 'W': case 'X': case 'Y': case 'Z':
-            case '$': case '_':
-                scanIdentifier();
-                break;
-            case '0':
+            try {
+                if (index == stream.length) {
+                    return (currentToken = Token.EOF);
+                }
                 nextChar();
-                if (ch == 'x' || ch == 'X') {
-                    scanHexNumber();
-                }
-                else {
-                    putBack();
-                    scanOctalNumber();
-                }
-                break;
-            case '1': case '2': case '3': case '4': case '5': case '6': case '7':
-            case '8': case '9':
-                scanDecimalNumber();
-                break;
-            case '"':
-                scanStringLiteral();
-                break;
-            case '\'':
-                scanCharLiteral();
-                break;
-            case ';':
-                currentToken = Token.SEMICOLON;
-                break;
-            case ',':
-                currentToken = Token.COMMA;
-                break;
-            case '.':
-                if (nextChar() == '.') {
-                    if (nextChar() == '.') {
-                        currentToken = Token.ELLIPSIS;
-                        break;
+                switch (ch) {
+                case ' ': case '\t': case '\r': case '\n':
+                    continue;
+                case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
+                case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
+                case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
+                case 'v': case 'w': case 'x': case 'y': case 'z':
+                case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
+                case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
+                case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U':
+                case 'V': case 'W': case 'X': case 'Y': case 'Z':
+                case '$': case '_':
+                    scanIdentifier();
+                    break;
+                case '0':
+                    nextChar();
+                    if (ch == 'x' || ch == 'X') {
+                        scanHexNumber();
+                    }
+                    else if (Character.isDigit(ch)) {
+                        putBack();
+                        scanOctalNumber();
                     }
                     else {
                         putBack();
-                        putBack();
+                        scanDecimalNumber();
                     }
-                }
-                else {
-                    putBack();
-                }
-                currentToken = Token.DOT;
-                break;
-            case '@':
-                currentToken = Token.AT;
-                break;
-            case '+':
-                switch (nextChar()) {
-                case '+':
-                    currentToken = Token.PLUSPLUS;
                     break;
-                case '=':
-                    currentToken = Token.PLUSEQ;
+                case '1': case '2': case '3': case '4': case '5': case '6': case '7':
+                case '8': case '9':
+                    scanDecimalNumber();
                     break;
-                default:
-                    putBack();
-                    currentToken = Token.PLUS;
+                case '"':
+                    scanStringLiteral();
                     break;
-                }
-                break;
-            case '-':
-                switch (nextChar()) {
-                case '-':
-                    currentToken = Token.MINUSMINUS;
+                case '\'':
+                    scanCharLiteral();
                     break;
-                case '=':
-                    currentToken = Token.MINUSEQ;
+                case ';':
+                    currentToken = Token.SEMICOLON;
                     break;
-                default:
-                    putBack();
-                    currentToken = Token.MINUS;
+                case ',':
+                    currentToken = Token.COMMA;
                     break;
-                }
-                break;
-            case '%':
-                if (nextChar() == '=') {
-                    currentToken = Token.PERCENTEQ;
-                    break;
-                }
-                putBack();
-                currentToken = Token.PERCENT;
-                break;
-            case '*':
-                if (nextChar() == '=') {
-                    currentToken = Token.STAREQ;
-                    break;
-                }
-                putBack();
-                currentToken = Token.STAR;
-                break;
-            case '/':
-                switch (nextChar()) {
-                case '=':
-                    currentToken = Token.SLASHEQ;
-                    break;
-                case '*':
-                    skipComment();
-                    break;
-                default:
-                    putBack();
-                    currentToken = Token.SLASH;
-                    break;
-                }
-                break;
-            case '=':
-                if (nextChar() == '=') {
-                    currentToken = Token.EQEQ;
-                    break;
-                }
-                putBack();
-                currentToken = Token.EQ;
-                break;
-            case '!':
-                if (nextChar() == '=') {
-                    currentToken = Token.EXCLAMEQ;
-                    break;
-                }
-                putBack();
-                currentToken = Token.EXCLAM;
-                break;
-            case '<':
-                switch(nextChar()) {
-                case '<':
-                    if (nextChar() == '=') {
-                        currentToken = Token.LTLTEQ;
-                        break;
-                    }
-                    putBack();
-                    currentToken = Token.LTLT;
-                    break;
-                case '=':
-                    currentToken = Token.LTEQ;
-                    break;
-                default:
-                    putBack();
-                    currentToken = Token.LT;
-                    break;
-                }
-                break;
-            case '>':
-                switch(nextChar()) {
-                case '>':
-                    switch(nextChar()) {
-                    case '>':
-                        if (nextChar() == '=') {
-                            currentToken = Token.GTGTGTEQ;
+                case '.':
+                    if (nextChar() == '.') {
+                        if (nextChar() == '.') {
+                            currentToken = Token.ELLIPSIS;
                             break;
                         }
+                        else {
+                            putBack();
+                            putBack();
+                        }
+                    }
+                    else {
                         putBack();
-                        currentToken = Token.GTGTGT;
+                    }
+                    currentToken = Token.DOT;
+                    break;
+                case '@':
+                    currentToken = Token.AT;
+                    break;
+                case '+':
+                    switch (nextChar()) {
+                    case '+':
+                        currentToken = Token.PLUSPLUS;
                         break;
                     case '=':
-                        currentToken = Token.GTGTEQ;
+                        currentToken = Token.PLUSEQ;
                         break;
                     default:
                         putBack();
-                        currentToken = Token.GTGT;
+                        currentToken = Token.PLUS;
+                        break;
+                    }
+                    break;
+                case '-':
+                    switch (nextChar()) {
+                    case '-':
+                        currentToken = Token.MINUSMINUS;
+                        break;
+                    case '=':
+                        currentToken = Token.MINUSEQ;
+                        break;
+                    default:
+                        putBack();
+                        currentToken = Token.MINUS;
+                        break;
+                    }
+                    break;
+                case '%':
+                    if (nextChar() == '=') {
+                        currentToken = Token.PERCENTEQ;
+                        break;
+                    }
+                    putBack();
+                    currentToken = Token.PERCENT;
+                    break;
+                case '*':
+                    if (nextChar() == '=') {
+                        currentToken = Token.STAREQ;
+                        break;
+                    }
+                    putBack();
+                    currentToken = Token.STAR;
+                    break;
+                case '/':
+                    switch (nextChar()) {
+                    case '=':
+                        currentToken = Token.SLASHEQ;
+                        break;
+                    case '*':
+                        skipComment();
+                        break;
+                    case '/':
+                        nextLine();
+                        break;
+                    default:
+                        putBack();
+                        currentToken = Token.SLASH;
                         break;
                     }
                     break;
                 case '=':
-                    currentToken = Token.GTEQ;
-                    break;
-                default:
+                    if (nextChar() == '=') {
+                        currentToken = Token.EQEQ;
+                        break;
+                    }
                     putBack();
-                    currentToken = Token.GT;
+                    currentToken = Token.EQ;
                     break;
-                }
-                break;
-            case '&':
-                switch (nextChar()) {
+                case '!':
+                    if (nextChar() == '=') {
+                        currentToken = Token.EXCLAMEQ;
+                        break;
+                    }
+                    putBack();
+                    currentToken = Token.EXCLAM;
+                    break;
+                case '<':
+                    switch(nextChar()) {
+                    case '<':
+                        if (nextChar() == '=') {
+                            currentToken = Token.LTLTEQ;
+                            break;
+                        }
+                        putBack();
+                        currentToken = Token.LTLT;
+                        break;
+                    case '=':
+                        currentToken = Token.LTEQ;
+                        break;
+                    default:
+                        putBack();
+                        currentToken = Token.LT;
+                        break;
+                    }
+                    break;
+                case '>':
+                    switch(nextChar()) {
+                    case '>':
+                        switch(nextChar()) {
+                        case '>':
+                            if (nextChar() == '=') {
+                                currentToken = Token.GTGTGTEQ;
+                                break;
+                            }
+                            putBack();
+                            currentToken = Token.GTGTGT;
+                            break;
+                        case '=':
+                            currentToken = Token.GTGTEQ;
+                            break;
+                        default:
+                            putBack();
+                            currentToken = Token.GTGT;
+                            break;
+                        }
+                        break;
+                    case '=':
+                        currentToken = Token.GTEQ;
+                        break;
+                    default:
+                        putBack();
+                        currentToken = Token.GT;
+                        break;
+                    }
+                    break;
                 case '&':
-                    currentToken = Token.AMPAMP;
+                    switch (nextChar()) {
+                    case '&':
+                        currentToken = Token.AMPAMP;
+                        break;
+                    case '=':
+                        currentToken = Token.AMPEQ;
+                        break;
+                    default:
+                        putBack();
+                        currentToken = Token.AMP;
+                        break;
+                    }
                     break;
-                case '=':
-                    currentToken = Token.AMPEQ;
-                    break;
-                default:
-                    putBack();
-                    currentToken = Token.AMP;
-                    break;
-                }
-                break;
-            case '|':
-                switch (nextChar()) {
                 case '|':
-                    currentToken = Token.PIPEPIPE;
+                    switch (nextChar()) {
+                    case '|':
+                        currentToken = Token.PIPEPIPE;
+                        break;
+                    case '=':
+                        currentToken = Token.PIPEEQ;
+                        break;
+                    default:
+                        putBack();
+                        currentToken = Token.PIPE;
+                        break;
+                    }
                     break;
-                case '=':
-                    currentToken = Token.PIPEEQ;
+                case '^':
+                    if (nextChar() == '=') {
+                        currentToken = Token.CARETEQ;
+                        break;
+                    }
+                    putBack();
+                    currentToken = Token.CARET;
+                    break;
+                case '~':
+                    currentToken = Token.TILDE;
+                    break;
+                case '?':
+                    currentToken = Token.QUERY;
+                    break;
+                case ':':
+                    currentToken = Token.COLON;
+                    break;
+                case '(':
+                    currentToken = Token.LPAREN;
+                    break;
+                case ')':
+                    currentToken = Token.RPAREN;
+                    break;
+                case '[':
+                    currentToken = Token.LBRACKET;
+                    break;
+                case ']':
+                    currentToken = Token.RBRACKET;
+                    break;
+                case '{':
+                    currentToken = Token.LBRACE;
+                    break;
+                case '}':
+                    currentToken = Token.RBRACE;
                     break;
                 default:
-                    putBack();
-                    currentToken = Token.PIPE;
-                    break;
+                    System.out.println("Invalid token: " + ch);
+                    currentToken = Token.ERROR;
+                    nextChar();
                 }
-                break;
-            case '^':
-                if (nextChar() == '=') {
-                    currentToken = Token.CARETEQ;
-                    break;
-                }
-                putBack();
-                currentToken = Token.CARET;
-                break;
-            case '~':
-                currentToken = Token.TILDE;
-                break;
-            case '?':
-                currentToken = Token.QUERY;
-                break;
-            case ':':
-                currentToken = Token.COLON;
-                break;
-            case '(':
-                currentToken = Token.LPAREN;
-                break;
-            case ')':
-                currentToken = Token.RPAREN;
-                break;
-            case '[':
-                currentToken = Token.LBRACKET;
-                break;
-            case ']':
-                currentToken = Token.RBRACKET;
-                break;
-            case '{':
-                currentToken = Token.LBRACE;
-                break;
-            case '}':
-                currentToken = Token.RBRACE;
-                break;
-            default:
-                currentToken = Token.ERROR;
-                nextChar();
+                return currentToken;
             }
-            return currentToken;
+            catch (EOFException e) {
+                return token().EOF;
+            }
         }
     }
     
-    protected void scanIdentifier() {
+    protected void scanIdentifier() throws EOFException {
         while (isIdentifierCharacter(ch, false)) {
             addChar(ch);
             if (index >= stream.length) {
@@ -376,6 +396,7 @@ public class Lexer {
             currentToken = new Token(type, bufferToString());
         }
         clearBuffer();
+        System.out.println("scanIdent: currentToken = " + currentToken);
     }
     
     protected boolean isIdentifierCharacter(char c, boolean firstLetter) {
@@ -386,9 +407,9 @@ public class Lexer {
             case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
             case 'v': case 'w': case 'x': case 'y': case 'z':
             case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
-            case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'O':
-            case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V':
-            case 'W': case 'X': case 'Y': case 'Z':
+            case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
+            case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U':
+            case 'V': case 'W': case 'X': case 'Y': case 'Z':
             case '$': case '_':
                 return true;
             default:
@@ -402,9 +423,9 @@ public class Lexer {
             case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
             case 'v': case 'w': case 'x': case 'y': case 'z':
             case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
-            case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'O':
-            case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V':
-            case 'W': case 'X': case 'Y': case 'Z':
+            case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
+            case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U':
+            case 'V': case 'W': case 'X': case 'Y': case 'Z':
             case '$': case '_':
             case '0': case '1': case '2': case '3': case '4': case '5': case '6':
             case '7': case '8': case '9':
@@ -415,7 +436,7 @@ public class Lexer {
         }
     }
     
-    protected void skipComment() {
+    protected void skipComment() throws EOFException {
         while (true) {
             if (nextChar() == '*') {
                 if (nextChar() == '/') {
@@ -423,6 +444,11 @@ public class Lexer {
                 }
                 putBack();
             }
+        }
+    }
+    
+    protected void nextLine() throws EOFException {
+        while (nextChar() != '\n') {
         }
     }
     
@@ -442,7 +468,7 @@ public class Lexer {
         }
     }
     
-    protected void scanHexNumber() {
+    protected void scanHexNumber() throws EOFException {
         nextChar();
         Type type = Type.INT_LITERAL;
         while (isHexDigit(ch) || ch == '_') {
@@ -483,7 +509,7 @@ public class Lexer {
         return c > '0' && c < '9';
     }
     
-    protected void scanOctalNumber() {
+    protected void scanOctalNumber() throws EOFException {
         nextChar();
         Type type = Type.INT_LITERAL;
         boolean dotEncountered = false;
@@ -544,9 +570,10 @@ public class Lexer {
         clearBuffer();
     }
     
-    protected void scanDecimalNumber() {
+    protected void scanDecimalNumber() throws EOFException {
         Type type = Type.INT_LITERAL;
         while (Character.isDigit(ch) || ch == '_' || ch == '.') {
+            System.out.println("sDN: ch = " + ch);
             if (ch == '_') {
                 nextChar();
                 continue;
@@ -600,7 +627,7 @@ public class Lexer {
         clearBuffer();
     }
     
-    protected char convertEscapes() {
+    protected char convertEscapes() throws EOFException {
         if (ch == '\\') {
             switch (nextChar()) {
             case 'n':       // Line feed
@@ -629,7 +656,7 @@ public class Lexer {
         }
     }
     
-    protected void scanCharLiteral() {
+    protected void scanCharLiteral() throws EOFException {
         nextChar();
         char lit = convertEscapes();
         if (nextChar() != '\'') {
@@ -639,7 +666,7 @@ public class Lexer {
         currentToken = new Token(Type.CHAR_LITERAL, lit);
     }
     
-    protected void scanStringLiteral() {
+    protected void scanStringLiteral() throws EOFException {
         while (nextChar() != '"') {
             addChar(convertEscapes());
         }

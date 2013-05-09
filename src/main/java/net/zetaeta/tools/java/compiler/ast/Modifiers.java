@@ -39,4 +39,8 @@ public class Modifiers {
     public void addAnnotation(Annotation a) {
         annotations.add(a);
     }
+    
+    public int getModifiers() {
+        return mods;
+    }
 }

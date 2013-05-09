@@ -68,7 +68,9 @@ public class Parser {
     
     protected void parsePackageDeclaration(CompilationUnit comp) throws ParsingException {
         match(Type.PACKAGE);
+        lexer.nextToken();
         String name = parseDottedIdentifier();
+        System.out.println(name);
 //        while (lexer.nextToken().getType() == Type.IDENTIFIER) {
 //            name.append(lexer.token().stringValue());
 //            if (lexer.nextToken() == Token.DOT) {
@@ -98,7 +100,8 @@ public class Parser {
     
     protected Modifiers parseModifiers() throws ParsingException {
         Modifiers mods = new Modifiers();
-        while (lexer.nextToken().getType() != Type.IDENTIFIER) {
+        while (lexer.token().getType() != Type.IDENTIFIER && lexer.token() != Token.EOF) {
+            System.out.println(lexer.token());
             switch (lexer.token().getType()) {
             case PUBLIC:
                 mods.addFlag(Modifiers.PUBLIC);
@@ -130,13 +133,16 @@ public class Parser {
             case ENUM:
                 mods.addFlag(Modifiers.ENUM);
                 break;
+            case CLASS:
+                mods.addFlag(Modifiers.CLASS);
+                break;
             case AT:
-                if (lexer.nextToken() == Token.INTERFACE) {
+                Token next = lexer.nextToken();
+                if (next == Token.INTERFACE) {
                     mods.addFlag(Modifiers.ANNOTATION);
                 }
                 else {
-                    Token next;
-                    if ((next = lexer.nextToken()).getType() != Type.IDENTIFIER) {
+                    if (next.getType() != Type.IDENTIFIER) {
                         throw new ParsingException("Expected 'interface' or identifier after '@'");
                     }
                     String name = parseDottedIdentifier();
@@ -152,12 +158,15 @@ public class Parser {
             default:
                 break;
             }
+            lexer.nextToken();
         }
+        System.out.println(lexer.token());
         return mods;
     }
     
     protected ClassOrInterfaceDeclaration parseClassOrInterface() throws ParsingException {
         Modifiers mods = parseModifiers();
+        System.out.println(mods.getModifiers());
         if (mods.hasFlag(Modifiers.CLASS)) {
             return parseClass(mods);
         }
@@ -189,6 +198,7 @@ public class Parser {
                 break;
             }
         }
+        System.out.println(tok);
         return sb.toString();
     }
     
@@ -220,6 +230,16 @@ public class Parser {
         else {
             genericParameters = Collections.emptyList();
         }
+        TypeName superClass;
+        List<TypeName> interfaces;
+        if (tok == Token.EXTENDS) {
+            lexer.nextToken();
+            superClass = parseTypeName();
+        }
+        tok = lexer.token();
+        if (tok == Token.IMPLEMENTS) {
+            interfaces = parseInterfaces();
+        }
         match(Type.LBRACE);
         while (true) {
             lexer.nextToken();
@@ -234,6 +254,21 @@ public class Parser {
             TypeName typeName = parseTypeName();
             
         }
+    }
+    
+    public 
+    
+    protected List<TypeName> parseInterfaces() throws ParsingException {
+        match(Type.IMPLEMENTS);
+        lexer.nextToken();
+        List<TypeName> interfaces = new ArrayList<>();
+        while (lexer.token().getType() == Type.IDENTIFIER) {
+            interfaces.add(parseTypeName());
+            if (lexer.token() == Token.COMMA) {
+                lexer.nextToken();
+            }
+        }
+        return interfaces;
     }
     
     protected List<GenericParameter> parseGenericTypeParameters() throws ParsingException {
@@ -333,7 +368,7 @@ public class Parser {
         default:
             throw new ParsingException("Invalid type name!");
         }
-        lexer.nextToken();
+        System.out.println(lexer.token());
         return result;
     }
     
