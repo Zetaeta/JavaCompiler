@@ -14,7 +14,10 @@ import net.zetaeta.tools.java.compiler.ast.Expression;
 import net.zetaeta.tools.java.compiler.ast.GenericObjectParameter;
 import net.zetaeta.tools.java.compiler.ast.GenericParameter;
 import net.zetaeta.tools.java.compiler.ast.InterfaceDeclaration;
+import net.zetaeta.tools.java.compiler.ast.Member;
+import net.zetaeta.tools.java.compiler.ast.Method;
 import net.zetaeta.tools.java.compiler.ast.Modifiers;
+import net.zetaeta.tools.java.compiler.ast.ParameterDeclaration;
 import net.zetaeta.tools.java.compiler.ast.TypeName;
 import net.zetaeta.tools.java.compiler.ast.WildcardGenericParameter;
 import net.zetaeta.tools.java.compiler.parser.Token.Type;
@@ -202,17 +205,37 @@ public class Parser {
         return sb.toString();
     }
     
+    protected List<ParameterDeclaration> parseParameterListDeclaration() throws ParsingException {
+        match(Type.LPAREN);
+        List<ParameterDeclaration> params = new ArrayList<>();
+        while (lexer.nextToken() != Token.RPAREN) {
+//            lexer.nextToken();
+            params.add(parseParameterDeclaration());
+            if (lexer.token() != Token.COMMA && lexer.token() != Token.RPAREN) {
+                throw new ParsingException("Invalid token in parameter list: " + lexer.token());
+            }
+        }
+        return params;
+    }
+    
     protected List<Expression> parseParameterList() throws ParsingException {
         match(Type.LPAREN);
         List<Expression> expressions = new ArrayList<>();
         while (lexer.nextToken() != Token.RPAREN) {
-//            lexer.nextToken();
             expressions.add(parseExpression());
             if (lexer.token() != Token.COMMA && lexer.token() != Token.RPAREN) {
                 throw new ParsingException("Invalid token in parameter list: " + lexer.token());
             }
         }
         return expressions;
+    }
+    
+    protected ParameterDeclaration parseParameterDeclaration() throws ParsingException {
+        TypeName typeName = parseTypeName();
+        
+        match(Type.IDENTIFIER);
+        String name = lexer.token().stringValue();
+        return new ParameterDeclaration(typeName, name);
     }
     
     protected Expression parseExpression() throws ParsingException {
@@ -243,20 +266,42 @@ public class Parser {
         match(Type.LBRACE);
         while (true) {
             lexer.nextToken();
-            Modifiers memberMods = parseModifiers();
-            List<GenericParameter> genParams;
-            if (lexer.token() == Token.LT) {
-                genParams = parseGenericTypeParameters();
-            }
-            else {
-                genParams = Collections.emptyList();
-            }
-            TypeName typeName = parseTypeName();
-            
+            Member member = parseMember();
         }
     }
     
-    public 
+    protected Member parseMember() throws ParsingException {
+        Modifiers memberMods = parseModifiers();
+        List<GenericParameter> genParams;
+        if (lexer.token() == Token.LT) {
+            genParams = parseGenericTypeParameters();
+        }
+        else {
+            genParams = Collections.emptyList();
+        }
+        TypeName returnType = parseTypeName();
+        match(Type.IDENTIFIER);
+        String name = lexer.token().stringValue();
+        if (lexer.token() == Token.LPAREN) {
+            parseMethod();
+        }
+    }
+    
+    protected Method parseMethod() throws ParsingException {
+        match(Type.LPAREN);
+        List<ParameterDeclaration> params = parseParameterListDeclaration();
+        if (lexer.token() == Token.THROWS) {
+            List<TypeName> exceptions = parseMethodThrows();
+        }
+    }
+    
+    protected List<TypeName> parseMethodThrows() throws ParsingException {
+        List<TypeName> exceptions = new ArrayList<>();
+        match(Type.THROWS);
+        while (lexer.token() != Token.LBRACE) {
+            exceptions.add(parseTypeName());
+        }
+    }
     
     protected List<TypeName> parseInterfaces() throws ParsingException {
         match(Type.IMPLEMENTS);

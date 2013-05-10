@@ -1,5 +1,9 @@
 package net.zetaeta.tools.java.compiler.ast;
 
-public class Member extends AnnotatedTreeNode {
+import java.util.List;
 
+public class Member extends AnnotatedTreeNode {
+    protected String name;
+    protected TypeName type;
+    protected List<TypeName> exceptions;
 }
