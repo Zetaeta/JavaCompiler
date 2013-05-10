@@ -300,6 +300,12 @@ public class Parser {
         match(Type.THROWS);
         while (lexer.token() != Token.LBRACE) {
             exceptions.add(parseTypeName());
+            if (lexer.token() == Token.COMMA) {
+                lexer.nextToken();
+            }
+            else {
+                match(Type.LBRACE);
+            }
         }
     }
     
