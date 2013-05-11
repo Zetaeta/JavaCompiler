@@ -6,6 +6,7 @@ import java.util.List;
 
 import net.zetaeta.tools.java.compiler.ast.Annotation;
 import net.zetaeta.tools.java.compiler.ast.AnnotationDeclaration;
+import net.zetaeta.tools.java.compiler.ast.Block;
 import net.zetaeta.tools.java.compiler.ast.ClassDeclaration;
 import net.zetaeta.tools.java.compiler.ast.ClassOrInterfaceDeclaration;
 import net.zetaeta.tools.java.compiler.ast.CompilationUnit;
@@ -283,16 +284,22 @@ public class Parser {
         match(Type.IDENTIFIER);
         String name = lexer.token().stringValue();
         if (lexer.token() == Token.LPAREN) {
-            parseMethod();
+            parseMethod(memberMods, genParams, returnType, name);
         }
     }
     
-    protected Method parseMethod() throws ParsingException {
+    protected Method parseMethod(Modifiers mod, List<GenericParameter> genParams, TypeName returns, String name) throws ParsingException {
         match(Type.LPAREN);
         List<ParameterDeclaration> params = parseParameterListDeclaration();
+        List<TypeName> exceptions;
         if (lexer.token() == Token.THROWS) {
-            List<TypeName> exceptions = parseMethodThrows();
+            exceptions = parseMethodThrows();
         }
+        else {
+            exceptions = Collections.emptyList();
+        }
+        Block body = parseBlock();
+        return new Method(name, returns, mod, genParams, params, exceptions, body);
     }
     
     protected List<TypeName> parseMethodThrows() throws ParsingException {
@@ -307,6 +314,11 @@ public class Parser {
                 match(Type.LBRACE);
             }
         }
+        return exceptions;
+    }
+    
+    protected Block parseBlock() {
+        return null;
     }
     
     protected List<TypeName> parseInterfaces() throws ParsingException {
