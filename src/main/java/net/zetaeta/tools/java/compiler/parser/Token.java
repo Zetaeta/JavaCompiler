@@ -147,7 +147,7 @@ public class Token {
         }
         
         public String toString() {
-            return name != null ? name : "";
+            return name != null ? name : super.toString();
         }
     }
     
@@ -162,6 +162,7 @@ public class Token {
     
     public Token(Type type) {
         this.type = type;
+        this.stringValue = type.getName();
     }
     
     public Token(Type type, String value) {

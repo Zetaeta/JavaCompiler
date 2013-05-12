@@ -1,7 +1,9 @@
 package net.zetaeta.tools.java.compiler.ast;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public abstract class TreeNode implements Iterable<TreeNode> {
     
@@ -13,12 +15,33 @@ public abstract class TreeNode implements Iterable<TreeNode> {
     
     protected abstract List<TreeNode> getChildList(); 
     
+    protected Map<?, ?> getAttributes() {
+        return Collections.emptyMap();
+    }
+    
+    protected String extraToString() {
+        Map<? extends Object, ? extends Object> attr = getAttributes();
+        if (attr == null || attr.size() == 0) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<?, ?> e : attr.entrySet()) {
+            sb.append(TAB_SIZE).append(e.getKey()).append(": ").append(e.getValue()).append('\n');
+        }
+        return sb.toString();
+        
+    }
+    
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(getClass().getSimpleName()).append(" {\n");
+        sb.append(extraToString());
+        System.out.println("extraToString:" + extraToString());
         for (TreeNode tn : getChildList()) {
-            for (String s : tn.toString().split(" ")) {
+            String tnStr = tn.toString();
+            for (String s : tnStr.split("\n")) {
+                System.out.println("s: " + s);
                 sb.append(TAB_SIZE).append(s).append('\n');
             }
         }

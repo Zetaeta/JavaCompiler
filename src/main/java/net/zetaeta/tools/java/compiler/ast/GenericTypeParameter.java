@@ -4,6 +4,14 @@ import java.util.List;
 
 /**
  * A generic parameter declaration, e.g. for a class or a method.
+ * For example,
+ * {@code
+ * class HashMap<K, V> implements Map<K,V> {}
+ * }
+ * or
+ * {@code
+ * public <T extends OutputStream> T getOStream() {}
+ * }
  * @author daniel
  *
  */

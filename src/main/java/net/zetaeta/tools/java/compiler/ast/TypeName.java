@@ -1,8 +1,11 @@
 package net.zetaeta.tools.java.compiler.ast;
 
+import java.util.Collections;
 import java.util.List;
 
-public class TypeName {
+import com.google.common.base.Joiner;
+
+public class TypeName extends TreeNode {
     
     private String name;
     private List<GenericObjectParameter> params;
@@ -12,7 +15,12 @@ public class TypeName {
     }
     
     public TypeName(String name, List<GenericObjectParameter> params) {
+        this(name);
         this.params = params;
+    }
+    
+    public String getName() {
+        return name;
     }
     
     public static final TypeName VOID = new TypeName("void"),
@@ -24,4 +32,23 @@ public class TypeName {
                                  DOUBLE = new TypeName("double"),
                                  CHAR = new TypeName("char"),
                                  BOOLEAN = new TypeName("boolean");
+
+    @Override
+    protected List<TreeNode> getChildList() {
+        return Collections.emptyList();
+    }
+    
+    @Override
+    public String toString() {
+        if (params == null || params.size() == 0) {
+            return name;
+        }
+        System.out.println("TypeName: name = " + name);
+        StringBuilder sb = new StringBuilder();
+        sb.append(name);
+        sb.append('<');
+        sb.append(Joiner.on(", ").join(params));
+        sb.append('>');
+        return sb.toString();
+    }
 }

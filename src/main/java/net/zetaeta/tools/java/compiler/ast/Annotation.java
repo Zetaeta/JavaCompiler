@@ -3,6 +3,8 @@ package net.zetaeta.tools.java.compiler.ast;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zetaeta.tools.java.compiler.ast.expr.Expression;
+
 public class Annotation extends TreeNode {
     private String name;
     private List<Expression> parameters;

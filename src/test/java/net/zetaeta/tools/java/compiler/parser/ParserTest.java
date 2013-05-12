@@ -18,7 +18,7 @@ public class ParserTest {
         String line;
         StringBuilder sb = new StringBuilder();
         while ((line = in.readLine()) != null) {
-            sb.append(line);
+            sb.append(line).append('\n');
         }
         Lexer lexer = new Lexer(sb.toString());
         Parser parser = new Parser(lexer);

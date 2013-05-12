@@ -2,7 +2,9 @@ package net.zetaeta.tools.java.compiler.parser;
 
 import java.io.EOFException;
 import java.io.ObjectOutputStream.PutField;
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Deque;
 
 import net.zetaeta.tools.java.compiler.parser.Token.Type;
 
@@ -31,12 +33,15 @@ public class Lexer {
     private String bufferStringCache;
     private int lastHash;
     
+    private Deque<Token> putBackTokens = new ArrayDeque<>();
+    
     public Lexer(char[] source) {
         this.stream = source;
     }
     
     public Lexer(String source) {
         this(source.toCharArray());
+        System.out.println("source:\n" + source);
     }
     
     protected void error(String s) {
@@ -73,10 +78,8 @@ public class Lexer {
     }
     
     protected void putBack() {
-        System.out.println("putBack: index = " + index + ", ch = " + ch);
         index--;
         ch = stream[index - 1];
-        System.out.println("putBack: index = " + index + ", ch = " + ch);
     }
     
     protected void addChar(char c) {
@@ -105,9 +108,22 @@ public class Lexer {
     }
     
     public Token nextToken() {
+        if (putBackTokens.size() > 0) {
+            return (currentToken = putBackTokens.pop());
+        }
+        return (currentToken = getToken());
+    }
+    
+    public void putBack(Token t) {
+        putBackTokens.push(currentToken);
+        currentToken = t;
+    }
+    
+    private Token getToken() {
         if (error) {
             return Token.EOF;
         }
+        nextTokenLoop:
         while (true) {
             try {
                 if (index == stream.length) {
@@ -228,10 +244,10 @@ public class Lexer {
                         break;
                     case '*':
                         skipComment();
-                        break;
+                        continue nextTokenLoop;
                     case '/':
                         nextLine();
-                        break;
+                        continue nextTokenLoop;
                     default:
                         putBack();
                         currentToken = Token.SLASH;
@@ -374,6 +390,8 @@ public class Lexer {
                 return currentToken;
             }
             catch (EOFException e) {
+                System.out.println("EOFException");
+                e.printStackTrace();
                 return token().EOF;
             }
         }
@@ -448,7 +466,9 @@ public class Lexer {
     }
     
     protected void nextLine() throws EOFException {
+        System.out.println("nextLine()");
         while (nextChar() != '\n') {
+            System.out.println("'" + ch + "'");
         }
     }
     

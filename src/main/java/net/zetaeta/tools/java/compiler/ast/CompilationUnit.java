@@ -27,9 +27,9 @@ public class CompilationUnit extends TreeNode {
     }
     
     @Override
-    public String toString() {
+    public String extraToString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(getClass().getSimpleName()).append(" {\n");
+//        sb.append(getClass().getSimpleName()).append(" {\n");
         if (packageName != null && !packageName.isEmpty()) {
             sb.append(TAB_SIZE).append("Package: ").append(packageName).append('\n');
         }
@@ -40,12 +40,12 @@ public class CompilationUnit extends TreeNode {
             }
             sb.append(TAB_SIZE).append("}\n");
         }
-        for (TreeNode tn : declarations) {
+/*        for (TreeNode tn : declarations) {
             for (String s : tn.toString().split(" ")) {
                 sb.append(TAB_SIZE).append(s).append('\n');
             }
         }
-        sb.append("}\n");
+        sb.append("}\n"); */
         return sb.toString();
     }
     

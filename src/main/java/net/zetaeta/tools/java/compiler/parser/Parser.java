@@ -1,5 +1,6 @@
 package net.zetaeta.tools.java.compiler.parser;
 
+import java.io.EOFException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -10,17 +11,28 @@ import net.zetaeta.tools.java.compiler.ast.Block;
 import net.zetaeta.tools.java.compiler.ast.ClassDeclaration;
 import net.zetaeta.tools.java.compiler.ast.ClassOrInterfaceDeclaration;
 import net.zetaeta.tools.java.compiler.ast.CompilationUnit;
+import net.zetaeta.tools.java.compiler.ast.Constructor;
 import net.zetaeta.tools.java.compiler.ast.EnumDeclaration;
-import net.zetaeta.tools.java.compiler.ast.Expression;
+import net.zetaeta.tools.java.compiler.ast.Field;
 import net.zetaeta.tools.java.compiler.ast.GenericObjectParameter;
-import net.zetaeta.tools.java.compiler.ast.GenericParameter;
+import net.zetaeta.tools.java.compiler.ast.GenericTypeParameter;
 import net.zetaeta.tools.java.compiler.ast.InterfaceDeclaration;
 import net.zetaeta.tools.java.compiler.ast.Member;
 import net.zetaeta.tools.java.compiler.ast.Method;
 import net.zetaeta.tools.java.compiler.ast.Modifiers;
 import net.zetaeta.tools.java.compiler.ast.ParameterDeclaration;
+import net.zetaeta.tools.java.compiler.ast.SolidMethod;
 import net.zetaeta.tools.java.compiler.ast.TypeName;
 import net.zetaeta.tools.java.compiler.ast.WildcardGenericParameter;
+import net.zetaeta.tools.java.compiler.ast.expr.AssignmentExpression;
+import net.zetaeta.tools.java.compiler.ast.expr.Expression;
+import net.zetaeta.tools.java.compiler.ast.expr.FieldAccess;
+import net.zetaeta.tools.java.compiler.ast.expr.FieldOrMethodAccess;
+import net.zetaeta.tools.java.compiler.ast.expr.MethodAccess;
+import net.zetaeta.tools.java.compiler.ast.expr.NullExpression;
+import net.zetaeta.tools.java.compiler.ast.stm.ExpressionStatement;
+import net.zetaeta.tools.java.compiler.ast.stm.ReturnStatement;
+import net.zetaeta.tools.java.compiler.ast.stm.Statement;
 import net.zetaeta.tools.java.compiler.parser.Token.Type;
 
 public class Parser {
@@ -56,7 +68,11 @@ public class Parser {
         }
     }
     
-    protected void parseAnnotations() throws ParsingException {
+    protected List<Annotation> parseAnnotations() throws ParsingException {
+        return null;
+    }
+    
+    protected Annotation parseAnnotation() throws ParsingException {
         match(Type.AT);
         lexer.nextToken();
         match(Type.IDENTIFIER);
@@ -68,6 +84,7 @@ public class Parser {
                 
             }
         }
+        return null;
     }
     
     protected void parsePackageDeclaration(CompilationUnit comp) throws ParsingException {
@@ -105,7 +122,6 @@ public class Parser {
     protected Modifiers parseModifiers() throws ParsingException {
         Modifiers mods = new Modifiers();
         while (lexer.token().getType() != Type.IDENTIFIER && lexer.token() != Token.EOF) {
-            System.out.println(lexer.token());
             switch (lexer.token().getType()) {
             case PUBLIC:
                 mods.addFlag(Modifiers.PUBLIC);
@@ -164,24 +180,24 @@ public class Parser {
             }
             lexer.nextToken();
         }
-        System.out.println(lexer.token());
         return mods;
     }
     
     protected ClassOrInterfaceDeclaration parseClassOrInterface() throws ParsingException {
+        List<Annotation> annots = parseAnnotations();
         Modifiers mods = parseModifiers();
         System.out.println(mods.getModifiers());
         if (mods.hasFlag(Modifiers.CLASS)) {
-            return parseClass(mods);
+            return parseClass(mods, annots);
         }
         else if (mods.hasFlag(Modifiers.INTERFACE)) {
-            return parseInterface(mods);
+            return parseInterface(mods, annots);
         }
         else if (mods.hasFlag(Modifiers.ENUM)) {
-            return parseEnum(mods);
+            return parseEnum(mods, annots);
         }
         else if (mods.hasFlag(Modifiers.ANNOTATION)) {
-            return parseAnnotation(mods);
+            return parseAnnotationDeclaration(mods, annots);
         }
         else {
             throw new ParsingException("Class, interface or annotation required!");
@@ -191,7 +207,7 @@ public class Parser {
     protected String parseDottedIdentifier() {
         StringBuilder sb = new StringBuilder();
         Token tok;
-        while ((tok = lexer.token()).getType() == Type.IDENTIFIER) {
+        while ((tok = lexer.token()).getType() == Type.IDENTIFIER || tok == Token.THIS) {
             sb.append(tok.stringValue());
             lexer.nextToken();
             if (lexer.token() == Token.DOT) {
@@ -202,27 +218,29 @@ public class Parser {
                 break;
             }
         }
-        System.out.println(tok);
         return sb.toString();
     }
     
     protected List<ParameterDeclaration> parseParameterListDeclaration() throws ParsingException {
         match(Type.LPAREN);
         List<ParameterDeclaration> params = new ArrayList<>();
-        while (lexer.nextToken() != Token.RPAREN) {
+        lexer.nextToken();
+        while (lexer.token() != Token.RPAREN) {
 //            lexer.nextToken();
             params.add(parseParameterDeclaration());
             if (lexer.token() != Token.COMMA && lexer.token() != Token.RPAREN) {
                 throw new ParsingException("Invalid token in parameter list: " + lexer.token());
             }
         }
+        lexer.nextToken();
         return params;
     }
     
     protected List<Expression> parseParameterList() throws ParsingException {
         match(Type.LPAREN);
         List<Expression> expressions = new ArrayList<>();
-        while (lexer.nextToken() != Token.RPAREN) {
+        lexer.nextToken();
+        while (lexer.token() != Token.RPAREN) {
             expressions.add(parseExpression());
             if (lexer.token() != Token.COMMA && lexer.token() != Token.RPAREN) {
                 throw new ParsingException("Invalid token in parameter list: " + lexer.token());
@@ -236,18 +254,49 @@ public class Parser {
         
         match(Type.IDENTIFIER);
         String name = lexer.token().stringValue();
-        return new ParameterDeclaration(typeName, name);
+        lexer.nextToken();
+        System.out.println("parse param decl: next token = " + lexer.token());
+        return new ParameterDeclaration(typeName, name, null);
     }
     
     protected Expression parseExpression() throws ParsingException {
+        System.out.println("parseExpression: token = " + lexer.token());
+        List<Expression> subExpressions = new ArrayList<>();
+        while (lexer.token() != Token.SEMICOLON && lexer.token() != Token.COMMA &&
+                lexer.token() != Token.RPAREN && lexer.token() != Token.RBRACKET) { // possible expression enders.
+            Expression sub = parseSubExpression();
+            switch (lexer.token().getType()) {
+            case EQ:
+                lexer.nextToken();
+                Expression equals = parseExpression();
+                return new AssignmentExpression(sub, equals);
+            default:
+                System.out.println("default: token = " + lexer.token());
+            }
+        }
         return new Expression();
     }
     
-    protected ClassDeclaration parseClass(Modifiers mods) throws ParsingException {
+    protected Expression parseSubExpression() throws ParsingException {
+        System.out.println("parseSub: token = " + lexer.token());
+        switch (lexer.token().getType()) {
+        case IDENTIFIER:
+        case THIS:
+            FieldOrMethodAccess access = parseMethodCallOrVarAccess();
+            return access;
+        case NULL:
+            lexer.nextToken();
+            return new NullExpression();
+        }
+        return null;
+        
+    }
+    
+    protected ClassDeclaration parseClass(Modifiers mods, List<Annotation> annots) throws ParsingException {
         match(Type.IDENTIFIER);
         String className = lexer.token().stringValue();
         Token tok = lexer.nextToken();
-        List<GenericParameter> genericParameters;
+        List<GenericTypeParameter> genericParameters;
         if (tok == Token.LT) {
             genericParameters = parseGenericTypeParameters();
         }
@@ -260,35 +309,57 @@ public class Parser {
             lexer.nextToken();
             superClass = parseTypeName();
         }
+        else {
+            superClass = new TypeName("java.lang.Object");
+        }
         tok = lexer.token();
         if (tok == Token.IMPLEMENTS) {
             interfaces = parseInterfaces();
         }
-        match(Type.LBRACE);
-        while (true) {
-            lexer.nextToken();
-            Member member = parseMember();
+        else {
+            interfaces = Collections.emptyList();
         }
+        match(Type.LBRACE);
+        lexer.nextToken();
+        List<Member> members = new ArrayList<>();
+        while (lexer.token() != Token.RBRACE) {
+            Member member = parseMember();
+            members.add(member);
+        }
+        ClassDeclaration cls = new ClassDeclaration(className, mods, annots, genericParameters, superClass, interfaces, members);
+        System.out.println(cls);
+        return cls;
     }
     
     protected Member parseMember() throws ParsingException {
+        System.out.println("parseMember");
+        List<Annotation> annot = parseAnnotations();
         Modifiers memberMods = parseModifiers();
-        List<GenericParameter> genParams;
+        List<GenericTypeParameter> genParams;
         if (lexer.token() == Token.LT) {
             genParams = parseGenericTypeParameters();
         }
         else {
-            genParams = Collections.emptyList();
+//o            genParams = Collections.emptyList();
+            genParams = null;
         }
-        TypeName returnType = parseTypeName();
+        TypeName type = parseTypeName();
+        if (lexer.token() == Token.LPAREN) {
+            return parseConstructor(type, memberMods, annot, genParams);
+        }
         match(Type.IDENTIFIER);
         String name = lexer.token().stringValue();
-        if (lexer.token() == Token.LPAREN) {
-            parseMethod(memberMods, genParams, returnType, name);
+        System.out.println("name = " + name); if (lexer.nextToken() == Token.LPAREN) {
+            return parseMethod(memberMods, annot, genParams, type, name);
         }
+        System.out.println("parseMember: token = " + lexer.token());
+        if (genParams != null) {
+            throw new ParsingException("A field cannot have generic type parameters!");
+        }
+        return parseField(name, type, memberMods, annot);
     }
     
-    protected Method parseMethod(Modifiers mod, List<GenericParameter> genParams, TypeName returns, String name) throws ParsingException {
+    public Constructor parseConstructor(TypeName type, Modifiers mods, List<Annotation> annot, List<GenericTypeParameter> genParams) throws ParsingException {
         match(Type.LPAREN);
         List<ParameterDeclaration> params = parseParameterListDeclaration();
         List<TypeName> exceptions;
@@ -299,7 +370,22 @@ public class Parser {
             exceptions = Collections.emptyList();
         }
         Block body = parseBlock();
-        return new Method(name, returns, mod, genParams, params, exceptions, body);
+        return new Constructor(type, mods, annot, genParams, params, exceptions, body);
+    }
+    
+    protected Method parseMethod(Modifiers mod, List<Annotation> annot, List<GenericTypeParameter> genParams, TypeName returns, String name) throws ParsingException {
+        System.out.println("parseMethod");
+        match(Type.LPAREN);
+        List<ParameterDeclaration> params = parseParameterListDeclaration();
+        List<TypeName> exceptions;
+        if (lexer.token() == Token.THROWS) {
+            exceptions = parseMethodThrows();
+        }
+        else {
+            exceptions = Collections.emptyList();
+        }
+        Block body = parseBlock();
+        return new SolidMethod(name, returns, mod, annot, genParams, params, exceptions, body);
     }
     
     protected List<TypeName> parseMethodThrows() throws ParsingException {
@@ -317,8 +403,114 @@ public class Parser {
         return exceptions;
     }
     
-    protected Block parseBlock() {
-        return null;
+    protected Field parseField(String name, TypeName type, Modifiers mods, List<Annotation> annot) throws ParsingException {
+        System.out.println("parseField");
+        if (lexer.token() == Token.SEMICOLON) {
+            return new Field(name, type, mods, annot);
+        }
+        Expression initializer = parseExpression();
+        return new Field(name, type, mods, annot, initializer);
+    }
+    
+    protected Block parseBlock() throws ParsingException {
+        System.out.println("parseBlock");
+        match(Type.LBRACE);
+        List<Statement> statements = new ArrayList<>();
+        lexer.nextToken();
+        Token tok;
+        while ((tok = lexer.token()) != Token.RBRACE) {
+            System.out.println("parseBlock: tok = " + tok);
+            switch (tok.getType()) {
+            case IDENTIFIER:
+            case THIS:
+                statements.add(parseNonCtrlFlowStatement());
+                break;
+            case RETURN:
+                statements.add(parseReturnStatement());
+                break;
+            case EOF:
+                throw new ParsingException(new EOFException());
+            default:
+                System.out.println("parseBlock: default: tok = " + tok);
+            }
+        }
+        lexer.nextToken();
+        System.out.println("finished parsing block!");
+        return new Block(statements);
+    }
+    
+    protected Statement parseNonCtrlFlowStatement() throws ParsingException {
+        Token first = lexer.token();
+        if (!possibleFieldName(first)) {
+            throw new ParsingException("Unexpected " + first.getType() + ", expected field or method name!");
+        }
+        Token second = lexer.nextToken();
+        if (lexer.token().getType() == Type.IDENTIFIER || lexer.token() == Token.LT) { // var declaration
+//            return parseVariableDeclaration(first);
+            return null;
+        }
+        else { // field or method access
+            System.out.println("parseNonCtrlFlowStatement: first = " + first + ", second = " + second);
+            lexer.putBack(first);
+            ExpressionStatement st = new ExpressionStatement(parseExpression());
+            match(Type.SEMICOLON);
+            lexer.nextToken();
+            return st;
+        }
+    }
+    
+    protected ReturnStatement parseReturnStatement() throws ParsingException {
+        System.out.println("parseReturnStatement");
+        match(Type.RETURN);
+        lexer.nextToken();
+        Expression returns = parseExpression();
+        match(Type.SEMICOLON);
+        lexer.nextToken();
+        System.out.println("finished return");
+        return new ReturnStatement(returns);
+    }
+    
+    public boolean possibleFieldName(Token tok) {
+        if (tok == Token.THIS || tok == Token.CLASS) {
+            return true;
+        }
+        if (tok.getType() == Type.IDENTIFIER) {
+            return true;
+        }
+        return false;
+    }
+    
+/*    protected Statement parseMethodCallOrVarAccessOrVarDeclaration() throws ParsingException {
+        Token first = lexer.token();
+        if (!possibleFieldName(first)) {
+            throw new ParsingException("Unexpected " + first.getType() + ", expected field or method name!");
+        }
+        lexer.nextToken();
+        if (lexer.token().getType() == Type.IDENTIFIER) { // var declaration
+            
+        }
+        else { // field or method access
+            parseMethodCallOrVarAccess(first);
+        }
+    }*/
+    
+    protected FieldOrMethodAccess parseMethodCallOrVarAccess() throws ParsingException {
+        Token first = lexer.token();
+        System.out.println("pMCOVA: first = " + first);
+        FieldOrMethodAccess access;
+        if (lexer.token() == Token.LPAREN) {
+            List<Expression> parameters = parseParameterList();
+            access = new MethodAccess(first, parameters);
+        }
+        else {
+            access = new FieldAccess(first);
+            lexer.nextToken();
+        }
+        if (lexer.token() == Token.DOT) {
+            access.setNext(parseMethodCallOrVarAccess());
+        }
+        System.out.println("pMCOVA: token = " + lexer.token());
+        return access;
     }
     
     protected List<TypeName> parseInterfaces() throws ParsingException {
@@ -334,9 +526,9 @@ public class Parser {
         return interfaces;
     }
     
-    protected List<GenericParameter> parseGenericTypeParameters() throws ParsingException {
+    protected List<GenericTypeParameter> parseGenericTypeParameters() throws ParsingException {
         match(Type.LT);
-        List<GenericParameter> params = new ArrayList<>();
+        List<GenericTypeParameter> params = new ArrayList<>();
         while (lexer.nextToken() != Token.GT) {
             match(Type.IDENTIFIER);
             String typeName = lexer.token().stringValue();
@@ -423,27 +615,30 @@ public class Parser {
                         genParams.add(new GenericObjectParameter(type));
                     }
                 }
+                lexer.nextToken();
+                System.out.println("parseTypeName: name = " + name + ", genParams = " + genParams);
                 result = new TypeName(name, genParams);
                 break;
             }
             result = new TypeName(name);
             break;
         default:
+            System.out.println(lexer.token());
             throw new ParsingException("Invalid type name!");
         }
         System.out.println(lexer.token());
         return result;
     }
     
-    protected InterfaceDeclaration parseInterface(Modifiers mods) {
-        return new InterfaceDeclaration();
+    protected InterfaceDeclaration parseInterface(Modifiers mods, List<Annotation> annots) {
+        return null;
     }
     
-    protected EnumDeclaration parseEnum(Modifiers mods) {
-        return new EnumDeclaration();
+    protected EnumDeclaration parseEnum(Modifiers mods, List<Annotation> annots) {
+        return null;
     }
     
-    protected AnnotationDeclaration parseAnnotation(Modifiers mods) {
-        return new AnnotationDeclaration();
+    protected AnnotationDeclaration parseAnnotationDeclaration(Modifiers mods, List<Annotation> annots) {
+        return null;
     }
 }

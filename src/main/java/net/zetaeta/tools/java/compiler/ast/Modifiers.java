@@ -3,6 +3,8 @@ package net.zetaeta.tools.java.compiler.ast;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.plaf.basic.BasicScrollPaneUI.HSBChangeListener;
+
 public class Modifiers {
     private int mods;
     
@@ -42,5 +44,56 @@ public class Modifiers {
     
     public int getModifiers() {
         return mods;
+    }
+    
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        if (hasFlag(PUBLIC)) {
+            sb.append("public").append(' ');
+        }
+        if (hasFlag(PROTECTED)) {
+            sb.append("protected").append(' ');
+        }
+        if (hasFlag(PRIVATE)) {
+            sb.append("private").append(' ');
+        }
+        if (hasFlag(STATIC)) {
+            sb.append("static").append(' ');
+        }
+        if (hasFlag(FINAL)) {
+            sb.append("final").append(' ');
+        }
+        if (hasFlag(SYNCHRONIZED)) {
+            sb.append("synchronized").append(' ');
+        }
+        if (hasFlag(VOLATILE)) {
+            sb.append("volatile").append(' ');
+        }
+        if (hasFlag(TRANSIENT)) {
+            sb.append("transient").append(' ');
+        }
+        if (hasFlag(NATIVE)) {
+            sb.append("native").append(' ');
+        }
+        if (hasFlag(ABSTRACT)) {
+            sb.append("abstract").append(' ');
+        }
+        if (hasFlag(STRICTFP)) {
+            sb.append("strictfp").append(' ');
+        }
+        if (hasFlag(CLASS)) {
+            sb.append("class").append(' ');
+        }
+        if (hasFlag(ENUM)) {
+            sb.append("enum").append(' ');
+        }
+        if (hasFlag(INTERFACE)) {
+            sb.append("interface").append(' ');
+        }
+        if (hasFlag(ANNOTATION)) {
+            sb.append("@interface").append(' ');
+        }
+        return sb.toString();
     }
 }
